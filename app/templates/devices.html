@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Management</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1 class="mt-5">Device Management</h1>
+        <button class="btn btn-success mb-3" id="addDeviceButton">Add Device</button>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Device Name</th>
+                    <th>Status</th>
+                    <th>Voltage</th>
+                    <th>Current</th>
+                    <th>Power</th>
+                    <th>Energy</th>
+                    <th>Frequency</th>
+                    <th>Wattage Rating</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="deviceTableBody">
+                {% for device in devices %}
+                <tr id="device-{{ device.id }}">
+                    <td>{{ device.name }}</td>
+                    <td class="status">{{ device.status }}</td>
+                    <td class="voltage">{{ device.voltage }}</td>
+                    <td class="current">{{ device.current }}</td>
+                    <td class="power">{{ device.power }}</td>
+                    <td class="energy">{{ device.energy }}</td>
+                    <td class="frequency">{{ device.frequency }}</td>
+                    <td class="rating">{{ device.rating }}</td>
+                    <td>
+                        <button class="btn btn-primary configure" data-id="{{ device.id }}" data-name="{{ device.name }}" data-rating="{{ device.rating }}">Configure</button>
+                        <button class="btn btn-danger toggle-status" data-id="{{ device.id }}">{{ 'Turn Off' if device.status == 'On' else 'Turn On' }}</button>
+                        <button class="btn btn-danger remove-device" data-id="{{ device.id }}">Remove</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Configuration Modal -->
+    <div class="modal fade" id="configureModal" tabindex="-1" role="dialog" aria-labelledby="configureModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="configureModalLabel">Configure Device</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="configureForm">
+                        <div class="form-group">
+                            <label for="deviceName">Device Name</label>
+                            <input type="text" class="form-control" id="deviceName" name="deviceName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="deviceRating">Wattage Rating</label>
+                            <input type="text" class="form-control" id="deviceRating" name="deviceRating" required>
+                        </div>
+                        <input type="hidden" id="deviceId" name="deviceId">
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="saveConfiguration">Save changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Device Modal -->
+    <div class="modal fade" id="addDeviceModal" tabindex="-1" role="dialog" aria-labelledby="addDeviceModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addDeviceModalLabel">Add Device</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="addDeviceForm">
+                        <div class="form-group">
+                            <label for="newDeviceName">Device Name</label>
+                            <input type="text" class="form-control" id="newDeviceName" name="newDeviceName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="newDeviceRating">Wattage Rating</label>
+                            <input type="text" class="form-control" id="newDeviceRating" name="newDeviceRating" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="addDevice">Add Device</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#addDeviceButton').click(function() {
+                $('#addDeviceModal').modal('show');
+            });
+
+            $('#addDevice').click(function() {
+                var deviceName = $('#newDeviceName').val();
+                var deviceRating = $('#newDeviceRating').val();
+                $.post('/add_device', {
+                    name: deviceName,
+                    rating: deviceRating
+                }, function(response) {
+                    if (response.success) {
+                        var device = response.device;
+                        var newRow = `
+                            <tr id="device-${device.id}">
+                                <td>${device.name}</td>
+                                <td class="status">${device.status}</td>
+                                <td class="voltage">0V</td>
+                                <td class="current">0A</td>
+                                <td class="power">0kW</td>
+                                <td class="energy">0kWh</td>
+                                <td class="frequency">50Hz</td>
+                                <td class="rating">${device.rating}</td>
+                                <td>
+                                    <button class="btn btn-primary configure" data-id="${device.id}" data-name="${device.name}" data-rating="${device.rating}">Configure</button>
+                                    <button class="btn btn-danger toggle-status" data-id="${device.id}">Turn On</button>
+                                    <button class="btn btn-danger remove-device" data-id="${device.id}">Remove</button>
+                                </td>
+                            </tr>
+                        `;
+                        $('#deviceTableBody').append(newRow);
+                        $('#addDeviceModal').modal('hide');
+                    }
+                });
+            });
+
+            $(document).on('click', '.toggle-status', function() {
+                var button = $(this);
+                var deviceId = button.data('id');
+                var action = button.text().trim() === 'Turn Off' ? 'turn_off' : 'turn_on';
+                $.post('/' + action + '/' + deviceId, function(response) {
+                    if (response.success) {
+                        var row = $('#device-' + deviceId);
+                        if (action === 'turn_off') {
+                            row.find('.status').text('Off');
+                            row.find('.voltage').text('0V');
+                            row.find('.current').text('0A');
+                            row.find('.power').text('0kW');
+                            row.find('.energy').text('0kWh');
+                            row.find('.frequency').text('50Hz');
+                            button.removeClass('btn-danger').addClass('btn-success').text('Turn On');
+                        } else {
+                            row.find('.status').text('On');
+                            $.get('/device_data/' + deviceId, function(response) {
+                                if (response.success) {
+                                    var device = response.device;
+                                    row.find('.voltage').text(device.voltage);
+                                    row.find('.current').text(device.current);
+                                    row.find('.power').text(device.power);
+                                    row.find('.energy').text(device.energy);
+                                    row.find('.frequency').text(device.frequency);
+                                }
+                            });
+                            button.removeClass('btn-success').addClass('btn-danger').text('Turn Off');
+                        }
+                    }
+                });
+            });
+
+            $(document).on('click', '.remove-device', function() {
+                var button = $(this);
+                var deviceId = button.data('id');
+                $.post('/remove_device/' + deviceId, function(response) {
+                    if (response.success) {
+                        $('#device-' + deviceId).remove();
+                    }
+                });
+            });
+
+            $('.configure').click(function() {
+                var deviceId = $(this).data('id');
+                var deviceName = $(this).data('name');
+                var deviceRating = $(this).data('rating');
+                $('#deviceId').val(deviceId);
+                $('#deviceName').val(deviceName);
+                $('#deviceRating').val(deviceRating);
+                $('#configureModal').modal('show');
+            });
+
+            $('#saveConfiguration').click(function() {
+                var deviceId = $('#deviceId').val();
+                var deviceName = $('#deviceName').val();
+                var deviceRating = $('#deviceRating').val();
+                $.post('/configure/' + deviceId, {
+                    name: deviceName,
+                    rating: deviceRating
+                }, function(response) {
+                    if (response.success) {
+                        var row = $('#device-' + deviceId);
+                        row.find('td:first').text(deviceName);
+                        row.find('.rating').text(deviceRating);
+                        $('#configureModal').modal('hide');
+                    }
+                });
+            });
+
+            function fetchDeviceData() {
+                $('.toggle-status').each(function() {
+                    var button = $(this);
+                    var deviceId = button.data('id');
+                    var row = $('#device-' + deviceId);
+                    if (row.find('.status').text().trim() === 'On') {
+                        $.get('/device_data/' + deviceId, function(response) {
+                            if (response.success) {
+                                var device = response.device;
+                                row.find('.voltage').text(device.voltage);
+                                row.find('.current').text(device.current);
+                                row.find('.power').text(device.power);
+                                row.find('.energy').text(device.energy);
+                                row.find('.frequency').text(device.frequency);
+                                button.removeClass('btn-success').addClass('btn-danger').text('Turn Off');
+                            }
+                        });
+                    } else {
+                        row.find('.voltage').text('0V');
+                        row.find('.current').text('0A');
+                        row.find('.power').text('0kW');
+                        row.find('.energy').text('0kWh');
+                        row.find('.frequency').text('50Hz');
+                        button.removeClass('btn-danger').addClass('btn-success').text('Turn On');
+                    }
+                });
+            }
+
+            setInterval(fetchDeviceData, 1000); // Fetch data every second
+        });
+    </script>
+</body>
+</html>
